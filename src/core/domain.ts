@@ -1,7 +1,6 @@
-﻿// Tipos de dominio para el asistente de reservas
-
+﻿// Intenciones detectadas por el NLP
 export interface Intent {
-  name: string;
+  name: 'reservar' | 'modificar' | 'cancelar' | 'informacion' | 'duda';
   confidence: number;
   slots: Record<string, Slot>;
 }
@@ -13,18 +12,38 @@ export interface Slot {
   rawValue?: string;
 }
 
+// Estado de la cita según la base de datos (enum en Prisma)
+export enum EstadoCita {
+  PENDIENTE = 'PENDIENTE',
+  CONFIRMADA = 'CONFIRMADA',
+  CANCELADA = 'CANCELADA',
+  COMPLETADA = 'COMPLETADA',
+}
+
+// DTO para crear/actualizar citas desde la API
+export interface CitaInput {
+  cliente: string;
+  telefono: string;
+  email?: string;
+  servicio: string;
+  fecha: string; // formato ISO (ej: 2025-09-20T10:00:00)
+  duracion?: number;
+  estado?: EstadoCita;
+  notas?: string;
+}
+
+// Cita devuelta por Prisma
 export interface Cita {
   id: string;
-  cliente: {
-    nombre: string;
-    telefono: string;
-    email?: string;
-  };
+  tenantId: string;
+  cliente: string;
+  telefono: string;
+  email?: string | null;
   servicio: string;
   fecha: Date;
-  duracion: number; // en minutos
-  estado: 'pendiente' | 'confirmada' | 'cancelada' | 'completada';
-  notas?: string;
+  duracion: number;
+  estado: EstadoCita;
+  notas?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

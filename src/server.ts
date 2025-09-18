@@ -1,38 +1,18 @@
 ﻿import express from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import morgan from 'morgan';
-import { config } from './config';
-import { errorHandler } from './middlewares/errorHandler';
 import { router } from './router';
+import { errorHandler } from './middlewares/errorHandler';
 
-const app = express();
+export function createServer() {
+  const app = express();
 
-// Middlewares de seguridad
-app.use(helmet());
-app.use(cors());
+  app.use(express.json({ limit: '2mb' }));
 
-// Middlewares de logging
-app.use(morgan('combined'));
+  // Rutas principales
+  app.use('/api', router);
 
-// Middlewares de parsing
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+  // Middleware de errores (debe ir al final)
+  app.use(errorHandler);
 
-// Rutas
-app.use('/', router);
+  return app;
+}
 
-// Middleware de manejo de errores
-app.use(errorHandler);
-
-// Health check
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'OK',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    environment: config.nodeEnv
-  });
-});
-
-export { app };

@@ -1,0 +1,62 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// === TENANTS ===
+/// Cada clínica/peluquería/etc.
+model Tenant {
+  id        String   @id @default(cuid())
+  nombre    String
+  slug      String   @unique         // 👈 clave legible y única
+  direccion String?
+  telefono  String?
+  email     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  citas     Cita[]
+}
+
+
+
+
+/// === CITAS ===
+/// Reservas de clientes, vinculadas a un tenant
+model Cita {
+  id        String     @id @default(cuid())
+  tenantId  String
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  cliente   String
+  telefono  String
+  email     String?
+
+  servicio  String
+  fecha     DateTime
+  duracion  Int        @default(30)
+  estado    EstadoCita @default(PENDIENTE)
+  notas     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// === ENUMS ===
+enum EstadoCita {
+  PENDIENTE
+  CONFIRMADA
+  CANCELADA
+  COMPLETADA
+}

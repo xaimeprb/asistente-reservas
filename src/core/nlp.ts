@@ -1,175 +1,33 @@
-﻿// Extracción de intención y slots con LLM
+﻿import { Intent } from './domain';
 
-import OpenAI from 'openai';
-import { config } from '../config';
-import { Intent, Slot, ContextoConversacion } from './domain';
+export async function detectIntentAndSlots(
+  texto: string
+): Promise<{ intent: Intent; slots: Record<string, string> }> {
+  const t = texto.toLowerCase();
+  const slots: Record<string, string> = {};
+  let intent: Intent = { name: 'duda', confidence: 0, slots: {} };
 
-export class NLPService {
-  private openai: OpenAI;
+  if (/reserv(ar|a)/.test(t) || /cita/.test(t)) intent = { name: 'reservar', confidence: 0, slots: {} };
+  if (/modific(ar|a)/.test(t)) intent = { name: 'modificar', confidence: 0, slots: {} };
+  if (/cancel(ar|a)/.test(t)) intent = { name: 'cancelar', confidence: 0, slots: {} };
+  if (/precio|horario|dirección|donde|cómo llegar|teléfono/.test(t)) intent = { name: 'informacion', confidence: 0, slots: {} };
 
-  constructor() {
-    this.openai = new OpenAI({
-      apiKey: config.openai.apiKey
-    });
-  }
+  // Extraer teléfono
+  const tel = t.match(/(\+?\d[\d\s]{7,}\d)/);
+  if (tel) slots['telefono'] = tel[1]?.replace(/\s+/g, '') || '';
 
-  /**
-   * Extrae la intención y slots de un mensaje de texto
-   */
-  async extraerIntencion(
-    mensaje: string, 
-    contexto: ContextoConversacion
-  ): Promise<Intent> {
-    const prompt = this.construirPrompt(mensaje, contexto);
+  // Extraer hora (HH:mm)
+  const hora = t.match(/\b([01]?\d|2[0-3]):[0-5]\d\b/);
+  if (hora) slots['hora'] = hora[0];
 
-    try {
-      const response = await this.openai.chat.completions.create({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'system',
-            content: prompt
-          },
-          {
-            role: 'user',
-            content: mensaje
-          }
-        ],
-        temperature: 0.1,
-        max_tokens: 500
-      });
+  // Extraer fecha YYYY-MM-DD
+  const fecha = t.match(/\b20\d{2}-\d{2}-\d{2}\b/);
+  if (fecha) slots['fecha'] = fecha[0];
 
-      const content = response.choices[0]?.message?.content;
-      if (!content) {
-        throw new Error('No se pudo obtener respuesta del LLM');
-      }
+  // Servicio
+  if (/limpieza|dental/.test(t)) slots['servicio'] = 'Limpieza dental';
+  if (/corte|tinte|pelu/.test(t)) slots['servicio'] = 'Peluquería';
+  if (/fisio|fisioterap/.test(t)) slots['servicio'] = 'Fisioterapia';
 
-      return this.parsearRespuesta(content);
-    } catch (error) {
-      console.error('Error en extracción de intención:', error);
-      return {
-        name: 'no_entendido',
-        confidence: 0.1,
-        slots: {}
-      };
-    }
-  }
-
-  private construirPrompt(mensaje: string, contexto: ContextoConversacion): string {
-    return 
-Eres un asistente de reservas médicas. Analiza el siguiente mensaje y extrae:
-
-1. INTENCIÓN: Una de estas opciones:
-   - agendar_cita: El cliente quiere agendar una cita
-   - consultar_horarios: El cliente pregunta por horarios disponibles
-   - cancelar_cita: El cliente quiere cancelar una cita
-   - modificar_cita: El cliente quiere cambiar una cita existente
-   - consultar_faq: El cliente hace una pregunta general
-   - confirmar_datos: El cliente confirma información
-   - no_entendido: No se puede determinar la intención
-
-2. SLOTS: Extrae información relevante como:
-   - nombre: Nombre del cliente
-   - telefono: Número de teléfono
-   - email: Correo electrónico
-   - servicio: Tipo de servicio (consulta, revisión, tratamiento, limpieza, extracción)
-   - fecha: Fecha deseada
-   - hora: Hora deseada
-   - motivo: Motivo de la consulta
-
-Contexto de la conversación:
-- Cliente: 
-- Teléfono: 
-- Última intención: 
-
-Responde en formato JSON:
-{
-  "intencion": "nombre_intencion",
-  "confianza": 0.95,
-  "slots": {
-    "nombre_slot": {
-      "valor": "valor_extraido",
-      "confianza": 0.9
-    }
-  }
-}
-;
-  }
-
-  private parsearRespuesta(content: string): Intent {
-    try {
-      const parsed = JSON.parse(content);
-      const slots: Record<string, Slot> = {};
-
-      if (parsed.slots) {
-        for (const [name, slot] of Object.entries(parsed.slots)) {
-          slots[name] = {
-            name,
-            value: (slot as any).valor || '',
-            confidence: (slot as any).confianza || 0.5
-          };
-        }
-      }
-
-      return {
-        name: parsed.intencion || 'no_entendido',
-        confidence: parsed.confianza || 0.5,
-        slots
-      };
-    } catch (error) {
-      console.error('Error parseando respuesta del LLM:', error);
-      return {
-        name: 'no_entendido',
-        confidence: 0.1,
-        slots: {}
-      };
-    }
-  }
-
-  /**
-   * Genera una respuesta natural basada en la intención
-   */
-  async generarRespuesta(
-    intencion: Intent,
-    contexto: ContextoConversacion
-  ): Promise<string> {
-    const prompt = 
-Genera una respuesta natural y amigable en español para un asistente de reservas médicas.
-
-Intención detectada: 
-Confianza: 
-Slots extraídos: 
-
-Contexto:
-- Cliente: 
-- Teléfono: 
-
-La respuesta debe ser:
-- Natural y conversacional
-- Útil y específica
-- En español mexicano
-- Máximo 2 oraciones
-
-Responde solo con el texto de la respuesta, sin explicaciones adicionales.
-;
-
-    try {
-      const response = await this.openai.chat.completions.create({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'system',
-            content: prompt
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 150
-      });
-
-      return response.choices[0]?.message?.content || 'Lo siento, no pude generar una respuesta.';
-    } catch (error) {
-      console.error('Error generando respuesta:', error);
-      return 'Lo siento, hubo un error procesando tu solicitud.';
-    }
-  }
+  return { intent, slots };
 }
