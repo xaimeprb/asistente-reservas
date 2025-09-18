@@ -1,5 +1,6 @@
 import { createServer } from './server';
 import { authRouter } from './authRouter';
+import "./jobs/reminders";
 
 const PORT = process.env['PORT'] || 8080;
 const app = createServer();
