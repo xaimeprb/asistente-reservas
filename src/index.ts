@@ -1,8 +1,11 @@
-import { config } from './config';
 import { createServer } from './server';
+import { authRouter } from './authRouter';
 
+const PORT = process.env['PORT'] || 8080;
 const app = createServer();
 
-app.listen(config.port, () => {
-  console.log(`✅ API escuchando en http://localhost:${config.port}`);
+app.use('/api/auth', authRouter);
+
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor escuchando en http://localhost:${PORT}`);
 });

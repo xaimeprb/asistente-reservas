@@ -1,4 +1,4 @@
-import { PrismaClient } from '../generated/prisma';
+import { EstadoCita, PrismaClient } from '../generated/prisma';
 import { CitaInput } from '../types/cita-input';
 
 const prisma = new PrismaClient();
@@ -61,5 +61,29 @@ export const AgendaService = {
 
     await prisma.cita.delete({ where: { id } });
     return true;
+  },
+
+  async getAll(tenantId: string) {
+    return prisma.cita.findMany({
+      where: { tenantId },
+      orderBy: { fecha: 'asc' },
+    });
+  },
+  
+  async findByEstado(tenantId: string, estado: EstadoCita) {
+    return prisma.cita.findMany({
+      where: { tenantId, estado },
+      orderBy: { fecha: 'asc' },
+    });
+  },
+
+  async stats(tenantId: string) {
+    const total = await prisma.cita.count({ where: { tenantId } });
+    const porEstado = await prisma.cita.groupBy({
+      by: ['estado'],
+      where: { tenantId },
+      _count: { estado: true },
+    });
+    return { total, porEstado };
   },
 };
