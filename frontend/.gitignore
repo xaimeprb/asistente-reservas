@@ -39,8 +39,3 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-# Ignorar archivos de configuración local
-.env
-.env.local
-.env.*.local
