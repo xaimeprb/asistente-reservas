@@ -1,0 +1,66 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")   // Pooler (runtime)
+  directUrl = env("DIRECT_URL")     // Directa (migraciones/CLI)
+}
+
+model Tenant {
+  id        String   @id @default(cuid())
+  nombre    String
+  slug      String   @unique
+  direccion String?
+  telefono  String?
+  email     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  citas     Cita[]
+  users     User[]
+}
+
+model Cita {
+  id        String     @id @default(cuid())
+  tenantId  String
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  cliente   String
+  telefono  String
+  email     String?
+  servicio  String
+  fecha     DateTime
+  duracion  Int        @default(30)
+  estado    EstadoCita @default(PENDIENTE)
+  notas     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum EstadoCita {
+  PENDIENTE
+  CONFIRMADA
+  CANCELADA
+  COMPLETADA
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(ADMIN)
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+enum Role {
+  SUPERADMIN
+  ADMIN
+}
