@@ -1,4 +1,4 @@
-import { PrismaClient } from '../generated/prisma';
+import { PrismaClient } from '@prisma/client';
 import slugify from 'slugify';
 
 const prisma = new PrismaClient();
@@ -34,9 +34,9 @@ export const TenantService = {
         data: {
           nombre: data.nombre,
           slug,
-          direccion: data.direccion,
-          telefono: data.telefono,
-          email: data.email,
+          direccion: data.direccion ?? null,
+          telefono: data.telefono ?? null,
+          email: data.email ?? null,
         },
       });
 

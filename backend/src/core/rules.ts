@@ -23,8 +23,8 @@ export class BusinessRules {
   static validarCita(cita: Partial<Cita>): { valida: boolean; error?: string } {
     if (!cita.fecha) return { valida: false, error: 'Fecha requerida' };
     if (!cita.duracion) return { valida: false, error: 'Duración requerida' };
-    if (!cita.cliente || !cita.cliente.nombre) return { valida: false, error: 'Nombre del cliente requerido' };
-    if (!cita.cliente || !cita.cliente.telefono) return { valida: false, error: 'Teléfono del cliente requerido' };
+    if (!cita.cliente || typeof cita.cliente !== 'string' || cita.cliente.trim() === '') return { valida: false, error: 'Nombre del cliente requerido' };
+    if (!cita.telefono || typeof cita.telefono !== 'string' || cita.telefono.trim() === '') return { valida: false, error: 'Teléfono del cliente requerido' };
     if (!cita.servicio) return { valida: false, error: 'Servicio requerido' };
   
     return { valida: true };

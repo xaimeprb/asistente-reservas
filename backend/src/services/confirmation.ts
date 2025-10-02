@@ -1,9 +1,17 @@
-import { Cita } from '../core/domain';
+// src/services/confirmation.ts
+import { CitaInput as Cita } from "../types/cita-input";
 
 /**
- * Devuelve un texto de confirmación de cita
- * adaptado a tu modelo actual de Cita.
+ * Devuelve un texto amigable confirmando la cita
  */
 export function formatConfirmation(c: Cita): string {
-  return `Perfecto, le confirmo: ${c.fecha} (${c.duracion} minutos) para ${c.servicio}, a nombre de ${c.cliente.nombre}, teléfono ${c.cliente.telefono}. ¿Es correcto?`;
+  const fecha = new Date(c.fecha).toLocaleDateString("es-ES", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  return `✅ Hola ${c.cliente || "usuario"}, tu cita para ${c.servicio} ha sido registrada el ${fecha}. Te contactaremos al teléfono ${c.telefono || "no proporcionado"}.`;
 }

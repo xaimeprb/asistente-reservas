@@ -1,6 +1,6 @@
 // Servicio para Google Calendar API con ADC
 import { google } from "googleapis";
-import { Cita } from "../generated/prisma";
+import { Cita } from "@prisma/client";
 import { DateTime } from "luxon";
 
 function requireEnv(key: string): string {

@@ -1,6 +1,6 @@
 // Servicio para WhatsApp con Twilio
 import twilio from "twilio";
-import { Cita } from "../generated/prisma";
+import { Cita } from "@prisma/client";
 
 const client = twilio(
   process.env["TWILIO_ACCOUNT_SID"]!,

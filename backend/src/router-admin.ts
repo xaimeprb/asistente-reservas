@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { AgendaService } from './services/agenda-prisma';
 import { TenantService } from './services/tenants';
-import { EstadoCita } from './generated/prisma';
+import { EstadoCita } from '@prisma/client';
 import { requireAuth } from './middlewares/requireAuth';
 
 export const adminRouter = Router();
@@ -20,7 +20,7 @@ async function tenantMiddleware(
     return res.status(404).json({ ok: false, error: 'Tenant no encontrado' });
   }
   (req as any).tenant = tenant;
-  next();
+  return next(); // ✅ return añadido
 }
 
 // ======================== CRUD CITAS ========================
@@ -33,7 +33,7 @@ adminRouter.get(
   async (req, res) => {
     const tenant = (req as any).tenant;
     const citas = await AgendaService.list(tenant.id);
-    res.json(citas);
+    return res.json(citas); // ✅ return añadido
   }
 );
 
@@ -51,7 +51,7 @@ adminRouter.get(
     }
 
     const citas = await AgendaService.findByEstado(tenant.id, estado);
-    res.json(citas);
+    return res.json(citas); // ✅ return añadido
   }
 );
 
@@ -63,7 +63,7 @@ adminRouter.post(
   async (req, res) => {
     const tenant = (req as any).tenant;
     const cita = await AgendaService.create(tenant.id, req.body);
-    res.status(201).json(cita);
+    return res.status(201).json(cita); // ✅ return añadido
   }
 );
 
@@ -76,7 +76,7 @@ adminRouter.put(
     const tenant = (req as any).tenant;
     try {
       const cita = await AgendaService.update(tenant.id, req.params.id, req.body);
-      res.json(cita);
+      return res.json(cita); // ✅ return añadido
     } catch (e: any) {
       if (e.message === 'no-encontrada') {
         return res.status(404).json({ error: 'Cita no encontrada' });
@@ -95,7 +95,7 @@ adminRouter.delete(
     const tenant = (req as any).tenant;
     try {
       await AgendaService.remove(tenant.id, req.params.id);
-      res.json({ ok: true, message: `Cita ${req.params.id} eliminada` });
+      return res.json({ ok: true, message: `Cita ${req.params.id} eliminada` }); // ✅ return añadido
     } catch (e: any) {
       if (e.message === 'no-encontrada') {
         return res.status(404).json({ error: 'Cita no encontrada' });
@@ -113,6 +113,6 @@ adminRouter.get(
   async (req, res) => {
     const tenant = (req as any).tenant;
     const stats = await AgendaService.stats(tenant.id);
-    res.json(stats);
+    return res.json(stats); // ✅ return añadido
   }
 );

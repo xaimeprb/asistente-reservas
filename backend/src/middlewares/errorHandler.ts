@@ -1,12 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 
-export function errorHandler(
-  err: any,
-  req: Request,
-  res: Response,
-  next: NextFunction
-) {
-  console.error(err);
-  const msg = typeof err?.message === 'string' ? err.message : 'internal-error';
-  res.status(400).json({ ok: false, error: msg });
+export function errorHandler(err: any, _req: Request, res: Response, _next: NextFunction) {
+  console.error('❌ Error:', err);
+
+  if (res.headersSent) {
+    return res.end(); // ✅ cerramos respuesta si ya estaba enviada
+  }
+
+  return res.status(500).json({ error: 'Error interno del servidor' });
 }

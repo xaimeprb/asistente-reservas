@@ -1,4 +1,4 @@
-import { EstadoCita, PrismaClient } from '../generated/prisma';
+import { PrismaClient, EstadoCita } from '@prisma/client';
 import { CitaInput } from '../types/cita-input';
 
 const prisma = new PrismaClient();
@@ -30,7 +30,7 @@ export const AgendaService = {
         servicio: data.servicio,
         fecha: new Date(data.fecha),
         duracion: data.duracion ?? 30,
-        estado: (data.estado as any) ?? 'PENDIENTE', // 👈 forzamos a enum
+        estado: (data.estado as EstadoCita) ?? 'PENDIENTE',
         notas: data.notas ?? null,
       },
     });
@@ -49,7 +49,7 @@ export const AgendaService = {
         servicio: data.servicio ?? existe.servicio,
         fecha: data.fecha ? new Date(data.fecha) : existe.fecha,
         duracion: data.duracion ?? existe.duracion,
-        estado: (data.estado as any) ?? existe.estado, // 👈 aquí también
+        estado: (data.estado as EstadoCita) ?? existe.estado,
         notas: data.notas ?? existe.notas,
       },
     });

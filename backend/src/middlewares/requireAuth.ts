@@ -3,7 +3,9 @@ import { AuthService } from '../services/authService';
 
 export function requireAuth(roles: string[] = []) {
   return (req: Request, res: Response, next: NextFunction) => {
-    const token = (req as any).cookies?.token || req.headers['authorization']?.toString().split(' ')[1];
+    const token =
+      (req as any).cookies?.token ||
+      req.headers['authorization']?.toString().split(' ')[1];
 
     if (!token) {
       return res.status(401).json({ error: 'No autenticado' });
@@ -21,6 +23,6 @@ export function requireAuth(roles: string[] = []) {
       return res.status(403).json({ error: 'Acceso denegado: rol insuficiente' });
     }
 
-    next();
+    return next(); // ✅ añadimos return para que todos los caminos devuelvan algo
   };
 }

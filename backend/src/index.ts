@@ -29,16 +29,5 @@ process.on('SIGTERM', () => {
   });
 });
 
-// Inicializa jobs DESPUÉS del listen (para no bloquear arranque si falta alguna env)
-(async () => {
-  try {
-    const mod = await import('./jobs/reminders');
-    if (typeof (mod as any).initReminders === 'function') {
-      await (mod as any).initReminders();
-    } else {
-      console.log('ℹ️ No reminders initializer found (ok)');
-    }
-  } catch (err) {
-    console.error('⚠️ Reminders init failed (no bloquea arranque):', err);
-  }
-})();
+// Desactivamos Twilio / reminders de momento
+console.log("ℹ️ Recordatorios (Twilio) desactivados en este entorno");

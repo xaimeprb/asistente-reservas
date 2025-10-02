@@ -8,12 +8,12 @@ import { TenantService } from "./services/tenants";
 export const retellRouter = Router();
 
 /**
- * Webhook que recibe eventos de Retell AI
+ * Webhook que recibe eventos de Retell AI (por tenant)
  */
 retellRouter.post("/webhook/:slug", async (req: Request, res: Response) => {
   try {
     const { slug } = req.params;
-    const { sessionId, text, cliente } = req.body;
+    const { text, cliente } = req.body;
 
     if (!slug) {
       return res.json({ reply: "⚠️ Slug de negocio requerido." });
@@ -33,8 +33,8 @@ retellRouter.post("/webhook/:slug", async (req: Request, res: Response) => {
       if (!slots["servicio"]) missing.push("el tipo de servicio");
       if (!slots["fecha"]) missing.push("la fecha");
       if (!slots["hora"]) missing.push("la hora");
-      if (!cliente?.nombre) missing.push("su nombre");
-      if (!cliente?.telefono) missing.push("su teléfono");
+      if (!(cliente as any)?.nombre) missing.push("su nombre");
+      if (!(cliente as any)?.telefono) missing.push("su teléfono");
 
       if (missing.length) {
         return res.json({
@@ -50,9 +50,9 @@ retellRouter.post("/webhook/:slug", async (req: Request, res: Response) => {
       }
 
       const cita = await AgendaService.create(tenant.id, {
-        cliente: cliente.nombre,
-        telefono: cliente.telefono,
-        email: cliente.email,
+        cliente: (cliente as any).nombre,
+        telefono: (cliente as any).telefono,
+        email: (cliente as any).email,
         servicio: slots["servicio"]!,
         fecha: fechaHora.toISOString(),
         duracion: 30,
@@ -67,12 +67,29 @@ retellRouter.post("/webhook/:slug", async (req: Request, res: Response) => {
     }
 
     if (intent.name === "informacion") {
-      return res.json({ reply: "Estamos en Calle Mayor 1. Horario: 10:00 a 20:00." });
+      return res.json({
+        reply: "Estamos en Calle Mayor 1. Horario: 10:00 a 20:00.",
+      });
     }
 
-    return res.json({ reply: "¿Quiere reservar, modificar o cancelar una cita?" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ reply: "❌ Error procesando la solicitud." });
+    return res.json({
+      reply: "¿Quiere reservar, modificar o cancelar una cita?",
+    });
+  } catch (err: any) {
+    console.error("❌ Error en webhook Retell:", err);
+    return res.status(500).json({ reply: "❌ Error procesando la solicitud." });
+  }
+});
+
+/**
+ * 📌 Callback genérico que Retell AI puede llamar para confirmaciones
+ */
+retellRouter.post("/callback", async (req: Request, res: Response) => {
+  try {
+    console.log("📞 Retell callback recibido:", req.body);
+    return res.json({ ok: true }); // ✅ aseguramos return
+  } catch (err: any) {
+    console.error("❌ Error en callback Retell:", err);
+    return res.status(500).json({ error: "Error en callback Retell" }); // ✅ return
   }
 });

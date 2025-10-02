@@ -24,7 +24,7 @@ async function tenantMiddleware(
     return res.status(404).json({ ok: false, error: 'Tenant no encontrado' });
   }
   (req as any).tenant = tenant; // guardamos el tenant completo
-  next();
+  return next(); // ✅ return añadido
 }
 
 // =================== RUTAS DE CITAS MULTI-TENANT =================== //
@@ -34,9 +34,9 @@ router.get('/:slug/citas', tenantMiddleware, async (req, res, next) => {
   try {
     const tenant = (req as any).tenant;
     const citas = await AgendaService.list(tenant.id);
-    res.json(citas);
+    return res.json(citas); // ✅ return añadido
   } catch (e) {
-    next(e);
+    return next(e);
   }
 });
 
@@ -53,14 +53,14 @@ router.post(
       const tenant = (req as any).tenant;
       const body = req.body as CitaInput;
       const cita = await AgendaService.create(tenant.id, body);
-      res.status(201).json(cita);
+      return res.status(201).json(cita); // ✅ return añadido
     } catch (e: any) {
       if (e.message === 'slot-ocupado') {
         return res
           .status(400)
           .json({ ok: false, error: 'Ya existe una cita en ese horario.' });
       }
-      next(e);
+      return next(e);
     }
   }
 );
@@ -85,9 +85,9 @@ router.post(
         const fechaHora = new Date(`${fecha}T${hora}:00`);
 
         const citaInput: CitaInput = {
-          cliente: cliente.nombre,
-          telefono: cliente.telefono,
-          email: cliente.email,
+          cliente: (cliente as any).nombre,
+          telefono: (cliente as any).telefono,
+          email: (cliente as any).email,
           servicio: slots['servicio']!,
           fecha: fechaHora.toISOString(),
           duracion: 30,
@@ -107,7 +107,7 @@ router.post(
         reply: '¿Desea reservar, modificar, cancelar o pedir información?',
       });
     } catch (e) {
-      next(e);
+      return next(e);
     }
   }
 );
@@ -126,7 +126,7 @@ router.put(
       const { id } = req.params;
       const body = req.body as CitaInput;
       const citaActualizada = await AgendaService.update(tenant.id, id, body);
-      res.json(citaActualizada);
+      return res.json(citaActualizada); // ✅ return añadido
     } catch (e: any) {
       if (e.message === 'no-encontrada') {
         return res.status(404).json({
@@ -134,7 +134,7 @@ router.put(
           error: 'No se pudo actualizar: la cita no existe.',
         });
       }
-      next(e);
+      return next(e);
     }
   }
 );
@@ -152,7 +152,7 @@ router.delete(
       const tenant = (req as any).tenant;
       const { id } = req.params;
       await AgendaService.remove(tenant.id, id);
-      res.json({ ok: true, message: `Cita ${id} eliminada correctamente` });
+      return res.json({ ok: true, message: `Cita ${id} eliminada correctamente` });
     } catch (e: any) {
       if (e.message === 'no-encontrada') {
         return res.status(404).json({
@@ -160,7 +160,7 @@ router.delete(
           error: 'No se pudo eliminar: la cita no existe.',
         });
       }
-      next(e);
+      return next(e);
     }
   }
 );
