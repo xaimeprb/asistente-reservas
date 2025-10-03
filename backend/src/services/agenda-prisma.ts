@@ -11,13 +11,22 @@ export const AgendaService = {
     });
   },
 
+  async getById(tenantId: string, id: string) {
+    return prisma.cita.findFirst({ where: { id, tenantId } });
+  },
+
+  async resolveByTelefonoFecha(tenantId: string, telefono: string, fechaISO: string) {
+    const fecha = new Date(fechaISO);
+    return prisma.cita.findFirst({
+      where: { tenantId, telefono, fecha },
+      orderBy: { createdAt: 'desc' },
+    });
+  },
+
   async create(tenantId: string, data: CitaInput) {
-    // Verificar solapamiento
+    // Evita solapes exactos (mismo tenant + misma fecha)
     const existe = await prisma.cita.findFirst({
-      where: {
-        tenantId,
-        fecha: new Date(data.fecha),
-      },
+      where: { tenantId, fecha: new Date(data.fecha) },
     });
     if (existe) throw new Error('slot-ocupado');
 
@@ -30,7 +39,7 @@ export const AgendaService = {
         servicio: data.servicio,
         fecha: new Date(data.fecha),
         duracion: data.duracion ?? 30,
-        estado: (data.estado as EstadoCita) ?? 'PENDIENTE',
+        estado: (data.estado as any) ?? 'PENDIENTE',
         notas: data.notas ?? null,
       },
     });
@@ -49,7 +58,7 @@ export const AgendaService = {
         servicio: data.servicio ?? existe.servicio,
         fecha: data.fecha ? new Date(data.fecha) : existe.fecha,
         duracion: data.duracion ?? existe.duracion,
-        estado: (data.estado as EstadoCita) ?? existe.estado,
+        estado: (data.estado as any) ?? existe.estado,
         notas: data.notas ?? existe.notas,
       },
     });
@@ -58,18 +67,10 @@ export const AgendaService = {
   async remove(tenantId: string, id: string) {
     const existe = await prisma.cita.findFirst({ where: { id, tenantId } });
     if (!existe) throw new Error('no-encontrada');
-
     await prisma.cita.delete({ where: { id } });
     return true;
   },
 
-  async getAll(tenantId: string) {
-    return prisma.cita.findMany({
-      where: { tenantId },
-      orderBy: { fecha: 'asc' },
-    });
-  },
-  
   async findByEstado(tenantId: string, estado: EstadoCita) {
     return prisma.cita.findMany({
       where: { tenantId, estado },

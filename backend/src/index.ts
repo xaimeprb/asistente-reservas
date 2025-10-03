@@ -1,20 +1,12 @@
+// src/index.ts
 import { createServer } from './server';
-import { authRouter } from './authRouter';
 
 const app = createServer();
 
-// Health check para Cloud Run
-app.get('/health', (_req, res) => res.status(200).send('ok'));
-
-// Rutas (ajusta según lo que uses)
-app.use('/api/auth', authRouter);
-
-// Puerto/IP correctos para Cloud Run
+// Cloud Run: puerto/IP
 const portEnv = process.env['PORT'] ?? '8080';
 const port = Number(portEnv);
-if (!Number.isFinite(port)) {
-  throw new Error(`PORT inválido: "${portEnv}"`);
-}
+if (!Number.isFinite(port)) throw new Error(`PORT inválido: "${portEnv}"`);
 const host = '0.0.0.0';
 
 const server = app.listen(port, host, () => {
@@ -29,5 +21,5 @@ process.on('SIGTERM', () => {
   });
 });
 
-// Desactivamos Twilio / reminders de momento
-console.log("ℹ️ Recordatorios (Twilio) desactivados en este entorno");
+// (Recordatorios/Twilio desactivados)
+console.log('ℹ️ Recordatorios (Twilio) desactivados en este entorno');

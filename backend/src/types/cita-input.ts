@@ -1,12 +1,10 @@
-export type EstadoCita = 'PENDIENTE' | 'CONFIRMADA' | 'CANCELADA' | 'COMPLETADA';
-
 export interface CitaInput {
   cliente: string;
   telefono: string;
-  email?: string;
+  email?: string | null;
   servicio: string;
-  fecha: string; // ISO string
+  fecha: string;       // ISO
   duracion?: number;
-  estado?: EstadoCita;
-  notas?: string;
+  estado?: 'PENDIENTE' | 'CONFIRMADA' | 'CANCELADA' | 'COMPLETADA';
+  notas?: string | null;
 }

@@ -1,18 +1,13 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { AgendaService } from './services/agenda-prisma';
 import { detectIntentAndSlots } from './core/nlp';
-import { BusinessRules } from './core/rules';
 import { formatConfirmation } from './services/confirmation';
-import { getFAQs } from './services/faqs';
-import { sendSms, sendEmail } from './adapters/notify';
 import { TenantService } from './services/tenants';
 import { CitaInput } from './types/cita-input';
 
 export const router = Router();
 
-/**
- * Middleware para validar tenant a partir del slug
- */
+/** Valida tenant por slug y lo cuelga en req.tenant */
 async function tenantMiddleware(
   req: Request<{ slug: string }>,
   res: Response,
@@ -20,60 +15,115 @@ async function tenantMiddleware(
 ) {
   const { slug } = req.params;
   const tenant = await TenantService.getBySlug(slug);
-  if (!tenant) {
-    return res.status(404).json({ ok: false, error: 'Tenant no encontrado' });
-  }
-  (req as any).tenant = tenant; // guardamos el tenant completo
-  return next(); // ✅ return añadido
+  if (!tenant) return res.status(404).json({ ok: false, error: 'Tenant no encontrado' });
+  (req as any).tenant = tenant;
+  next();
 }
 
-// =================== RUTAS DE CITAS MULTI-TENANT =================== //
+/** === CITAS MULTI-TENANT === */
 
-// Listado de citas por tenant
+// Listar todas
 router.get('/:slug/citas', tenantMiddleware, async (req, res, next) => {
   try {
     const tenant = (req as any).tenant;
     const citas = await AgendaService.list(tenant.id);
-    return res.json(citas); // ✅ return añadido
-  } catch (e) {
-    return next(e);
-  }
+    res.json(citas);
+  } catch (e) { next(e); }
 });
 
-// Crear cita directamente
+// Obtener por id
+router.get(
+  '/:slug/citas/:id',
+  tenantMiddleware,
+  async (req: Request<{ slug: string; id: string }>, res: Response, next: NextFunction) => {
+    try {
+      const tenant = (req as any).tenant;
+      const cita = await AgendaService.getById(tenant.id, req.params.id);
+      if (!cita) return res.status(404).json({ ok: false, error: 'Cita no encontrada' });
+      return res.json({ ok: true, cita });
+    } catch (e) { next(e); }
+  }
+);
+
+// Crear (devuelve citaId explícito)
 router.post(
   '/:slug/citas',
   tenantMiddleware,
-  async (
-    req: Request<{ slug: string }>,
-    res: Response,
-    next: NextFunction
-  ) => {
+  async (req: Request<{ slug: string }>, res: Response, next: NextFunction) => {
     try {
       const tenant = (req as any).tenant;
       const body = req.body as CitaInput;
       const cita = await AgendaService.create(tenant.id, body);
-      return res.status(201).json(cita); // ✅ return añadido
+      const location = `/${tenant.slug}/citas/${cita.id}`;
+      return res.status(201).location(location).json({ ok: true, citaId: cita.id, cita });
     } catch (e: any) {
       if (e.message === 'slot-ocupado') {
-        return res
-          .status(400)
-          .json({ ok: false, error: 'Ya existe una cita en ese horario.' });
+        return res.status(400).json({ ok: false, error: 'Ya existe una cita en ese horario.' });
       }
-      return next(e);
+      next(e);
     }
   }
 );
 
-// Webhook reservar
+// Actualizar
+router.put(
+  '/:slug/citas/:id',
+  tenantMiddleware,
+  async (req: Request<{ slug: string; id: string }>, res: Response, next: NextFunction) => {
+    try {
+      const tenant = (req as any).tenant;
+      const cita = await AgendaService.update(tenant.id, req.params.id, req.body);
+      res.json(cita);
+    } catch (e: any) {
+      if (e.message === 'no-encontrada') {
+        return res.status(404).json({ ok: false, error: 'Cita no encontrada' });
+      }
+      next(e);
+    }
+  }
+);
+
+// Eliminar
+router.delete(
+  '/:slug/citas/:id',
+  tenantMiddleware,
+  async (req: Request<{ slug: string; id: string }>, res: Response, next: NextFunction) => {
+    try {
+      const tenant = (req as any).tenant;
+      await AgendaService.remove(tenant.id, req.params.id);
+      res.json({ ok: true, message: `Cita ${req.params.id} eliminada` });
+    } catch (e: any) {
+      if (e.message === 'no-encontrada') {
+        return res.status(404).json({ ok: false, error: 'Cita no encontrada' });
+      }
+      next(e);
+    }
+  }
+);
+
+// Resolver id por telefono + fecha (para Retell si no guarda id)
+router.get(
+  '/:slug/citas/resolve',
+  tenantMiddleware,
+  async (req: Request<{ slug: string }, any, any, { telefono?: string; fecha?: string }>, res: Response, next: NextFunction) => {
+    try {
+      const tenant = (req as any).tenant;
+      const { telefono, fecha } = req.query;
+      if (!telefono || !fecha) {
+        return res.status(400).json({ ok: false, error: 'Faltan parámetros: telefono y fecha' });
+      }
+      const cita = await AgendaService.resolveByTelefonoFecha(tenant.id, String(telefono), String(fecha));
+      if (!cita) return res.status(404).json({ ok: false, error: 'No encontrada' });
+      return res.json({ ok: true, citaId: cita.id, cita });
+    } catch (e) { next(e); }
+  }
+);
+
+/** === DIALOG === */
 router.post(
   '/:slug/dialog',
   tenantMiddleware,
-  async (
-    req: Request<{ slug: string }>,
-    res: Response,
-    next: NextFunction
-  ) => {
+  async (req: Request<{ slug: string }>, res: Response, next: NextFunction) => {
     try {
       const tenant = (req as any).tenant;
       const { texto = '', cliente = {} } = req.body || {};
@@ -83,8 +133,7 @@ router.post(
         const fecha = slots['fecha']!;
         const hora = slots['hora']!;
         const fechaHora = new Date(`${fecha}T${hora}:00`);
-
-        const citaInput: CitaInput = {
+        const cita = await AgendaService.create(tenant.id, {
           cliente: (cliente as any).nombre,
           telefono: (cliente as any).telefono,
           email: (cliente as any).email,
@@ -93,74 +142,15 @@ router.post(
           duracion: 30,
           estado: 'PENDIENTE',
           notas: '',
-        };
-
-        const cita = await AgendaService.create(tenant.id, citaInput);
-
+        });
         return res.json({
           reply: formatConfirmation(cita as any),
+          citaId: cita.id,
           confirmToken: Buffer.from(JSON.stringify(cita)).toString('base64'),
         });
       }
 
-      return res.json({
-        reply: '¿Desea reservar, modificar, cancelar o pedir información?',
-      });
-    } catch (e) {
-      return next(e);
-    }
-  }
-);
-
-// Actualizar una cita
-router.put(
-  '/:slug/citas/:id',
-  tenantMiddleware,
-  async (
-    req: Request<{ slug: string; id: string }>,
-    res: Response,
-    next: NextFunction
-  ) => {
-    try {
-      const tenant = (req as any).tenant;
-      const { id } = req.params;
-      const body = req.body as CitaInput;
-      const citaActualizada = await AgendaService.update(tenant.id, id, body);
-      return res.json(citaActualizada); // ✅ return añadido
-    } catch (e: any) {
-      if (e.message === 'no-encontrada') {
-        return res.status(404).json({
-          ok: false,
-          error: 'No se pudo actualizar: la cita no existe.',
-        });
-      }
-      return next(e);
-    }
-  }
-);
-
-// Eliminar una cita
-router.delete(
-  '/:slug/citas/:id',
-  tenantMiddleware,
-  async (
-    req: Request<{ slug: string; id: string }>,
-    res: Response,
-    next: NextFunction
-  ) => {
-    try {
-      const tenant = (req as any).tenant;
-      const { id } = req.params;
-      await AgendaService.remove(tenant.id, id);
-      return res.json({ ok: true, message: `Cita ${id} eliminada correctamente` });
-    } catch (e: any) {
-      if (e.message === 'no-encontrada') {
-        return res.status(404).json({
-          ok: false,
-          error: 'No se pudo eliminar: la cita no existe.',
-        });
-      }
-      return next(e);
-    }
+      return res.json({ reply: '¿Desea reservar, modificar, cancelar o pedir información?' });
+    } catch (e) { next(e); }
   }
 );
