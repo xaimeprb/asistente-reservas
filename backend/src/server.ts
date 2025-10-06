@@ -35,8 +35,8 @@ export function createServer() {
   // -> Quedan como "/:slug/citas", "/:slug/citas/resolve", etc.
   app.use('/', router);
 
-  // Webhook Retell -> "/retell/webhook/:slug"
-  app.use('/retell', retellRouter);
+// Webhook Retell -> "/api/retell/webhook/:slug"
+app.use('/api/retell', retellRouter);
 
   // Rutas administrativas / auth (pueden ir con /api para separarlas)
   app.use('/api/auth', authRouter);

@@ -1,0 +1,1 @@
+{"version":3,"file":"tenants-prisma.d.ts","sourceRoot":"","sources":["../../src/services/tenants-prisma.ts"],"names":[],"mappings":"AAKA,eAAO,MAAM,aAAa;;;;;;;;;;;YAOV,MAAM;;;;;;;;;;oBAME,MAAM;;;;;;;;;;kBAMR;QAAE,MAAM,EAAE,MAAM,CAAC;QAAC,SAAS,CAAC,EAAE,MAAM,CAAC;QAAC,QAAQ,CAAC,EAAE,MAAM,CAAC;QAAC,KAAK,CAAC,EAAE,MAAM,CAAA;KAAE;;;;;;;;;;eAkC5E,MAAM;CAaxB,CAAC"}
