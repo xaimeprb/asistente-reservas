@@ -1,14 +1,26 @@
-// src/authRouter.ts
 import { Router } from 'express';
 import { UserService } from './services/userService';
 import { AuthService } from './services/authService';
+import { TenantService } from './services/tenants';
 
 export const authRouter = Router();
 
-// Registro de admin en un tenant
+// Registro de admin en un tenant (con tenantId o tenantSlug)
 authRouter.post('/register', async (req, res) => {
-  const { email, password, tenantId } = req.body;
-  const user = await UserService.create(email, password, tenantId, 'ADMIN');
+  const { email, password, tenantId, tenantSlug } = req.body;
+
+  let tenant = null;
+  if (tenantId) {
+    tenant = await TenantService.getById(tenantId);
+  } else if (tenantSlug) {
+    tenant = await TenantService.getBySlug(tenantSlug);
+  }
+
+  if (!tenant) {
+    return res.status(400).json({ error: 'Tenant no válido' });
+  }
+
+  const user = await UserService.create(email, password, tenant.id, 'ADMIN');
   return res.json({ ok: true, user });
 });
 
