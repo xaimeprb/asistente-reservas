@@ -7,17 +7,23 @@ import { CitaInput } from './types/cita-input';
 
 export const router = Router();
 
-/** Valida tenant por slug y lo cuelga en req.tenant */
+/** Middleware para validar tenant */
 async function tenantMiddleware(
   req: Request<{ slug: string }>,
   res: Response,
   next: NextFunction
 ) {
-  const { slug } = req.params;
-  const tenant = await TenantService.getBySlug(slug);
-  if (!tenant) return res.status(404).json({ ok: false, error: 'Tenant no encontrado' });
-  (req as any).tenant = tenant;
-  next();
+  try {
+    const { slug } = req.params;
+    const tenant = await TenantService.getBySlug(slug);
+    if (!tenant) {
+      return res.status(404).json({ ok: false, error: 'Tenant no encontrado' });
+    }
+    (req as any).tenant = tenant;
+    return next();
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: 'Error al validar tenant' });
+  }
 }
 
 /** === CITAS MULTI-TENANT === */
@@ -27,11 +33,13 @@ router.get('/:slug/citas', tenantMiddleware, async (req, res, next) => {
   try {
     const tenant = (req as any).tenant;
     const citas = await AgendaService.list(tenant.id);
-    res.json(citas);
-  } catch (e) { next(e); }
+    return res.json(citas);
+  } catch (e) {
+    return next(e);
+  }
 });
 
-// Obtener por id
+// Obtener por ID
 router.get(
   '/:slug/citas/:id',
   tenantMiddleware,
@@ -39,13 +47,17 @@ router.get(
     try {
       const tenant = (req as any).tenant;
       const cita = await AgendaService.getById(tenant.id, req.params.id);
-      if (!cita) return res.status(404).json({ ok: false, error: 'Cita no encontrada' });
+      if (!cita) {
+        return res.status(404).json({ ok: false, error: 'Cita no encontrada' });
+      }
       return res.json({ ok: true, cita });
-    } catch (e) { next(e); }
+    } catch (e) {
+      return next(e);
+    }
   }
 );
 
-// Crear (devuelve citaId explícito)
+// Crear nueva cita
 router.post(
   '/:slug/citas',
   tenantMiddleware,
@@ -60,12 +72,12 @@ router.post(
       if (e.message === 'slot-ocupado') {
         return res.status(400).json({ ok: false, error: 'Ya existe una cita en ese horario.' });
       }
-      next(e);
+      return next(e);
     }
   }
 );
 
-// Actualizar
+// Actualizar cita existente
 router.put(
   '/:slug/citas/:id',
   tenantMiddleware,
@@ -73,17 +85,17 @@ router.put(
     try {
       const tenant = (req as any).tenant;
       const cita = await AgendaService.update(tenant.id, req.params.id, req.body);
-      res.json(cita);
+      return res.json(cita);
     } catch (e: any) {
       if (e.message === 'no-encontrada') {
         return res.status(404).json({ ok: false, error: 'Cita no encontrada' });
       }
-      next(e);
+      return next(e);
     }
   }
 );
 
-// Eliminar
+// Eliminar cita
 router.delete(
   '/:slug/citas/:id',
   tenantMiddleware,
@@ -91,17 +103,17 @@ router.delete(
     try {
       const tenant = (req as any).tenant;
       await AgendaService.remove(tenant.id, req.params.id);
-      res.json({ ok: true, message: `Cita ${req.params.id} eliminada` });
+      return res.json({ ok: true, message: `Cita ${req.params.id} eliminada` });
     } catch (e: any) {
       if (e.message === 'no-encontrada') {
         return res.status(404).json({ ok: false, error: 'Cita no encontrada' });
       }
-      next(e);
+      return next(e);
     }
   }
 );
 
-// Resolver id por telefono + fecha (para Retell si no guarda id)
+// Resolver cita por teléfono + fecha
 router.get(
   '/:slug/citas/resolve',
   tenantMiddleware,
@@ -113,9 +125,13 @@ router.get(
         return res.status(400).json({ ok: false, error: 'Faltan parámetros: telefono y fecha' });
       }
       const cita = await AgendaService.resolveByTelefonoFecha(tenant.id, String(telefono), String(fecha));
-      if (!cita) return res.status(404).json({ ok: false, error: 'No encontrada' });
+      if (!cita) {
+        return res.status(404).json({ ok: false, error: 'No encontrada' });
+      }
       return res.json({ ok: true, citaId: cita.id, cita });
-    } catch (e) { next(e); }
+    } catch (e) {
+      return next(e);
+    }
   }
 );
 
@@ -133,6 +149,7 @@ router.post(
         const fecha = slots['fecha']!;
         const hora = slots['hora']!;
         const fechaHora = new Date(`${fecha}T${hora}:00`);
+
         const cita = await AgendaService.create(tenant.id, {
           cliente: (cliente as any).nombre,
           telefono: (cliente as any).telefono,
@@ -143,6 +160,7 @@ router.post(
           estado: 'PENDIENTE',
           notas: '',
         });
+
         return res.json({
           reply: formatConfirmation(cita as any),
           citaId: cita.id,
@@ -151,6 +169,8 @@ router.post(
       }
 
       return res.json({ reply: '¿Desea reservar, modificar, cancelar o pedir información?' });
-    } catch (e) { next(e); }
+    } catch (e) {
+      return next(e);
+    }
   }
 );

@@ -11,10 +11,14 @@ retellRouter.post('/webhook/:slug', async (req: Request, res: Response) => {
     const { slug } = req.params;
     const { sessionId, text, cliente } = req.body || {};
 
-    if (!slug) return res.json({ reply: '⚠️ Slug requerido.' });
+    if (!slug) {
+      return res.json({ reply: '⚠️ Slug requerido.' });
+    }
 
     const tenant = await TenantService.getBySlug(slug);
-    if (!tenant) return res.json({ reply: '⚠️ Negocio no encontrado.' });
+    if (!tenant) {
+      return res.json({ reply: '⚠️ Negocio no encontrado.' });
+    }
 
     const { intent, slots } = await detectIntentAndSlots(text || '');
 
@@ -31,7 +35,6 @@ retellRouter.post('/webhook/:slug', async (req: Request, res: Response) => {
       }
 
       const fechaHora = new Date(`${slots['fecha']}T${slots['hora']}:00`);
-
       const cita = await AgendaService.create(tenant.id, {
         cliente: cliente.nombre,
         telefono: cliente.telefono,
@@ -45,16 +48,16 @@ retellRouter.post('/webhook/:slug', async (req: Request, res: Response) => {
 
       return res.json({
         reply: `✅ Cita confirmada para ${slots['fecha']} a las ${slots['hora']}.`,
-        citaId: cita.id,                  // 👈 Retell debe guardar esto
+        citaId: cita.id,
         cita,
         confirmToken: Buffer.from(JSON.stringify(cita)).toString('base64'),
-        sessionId,                         // por si quieres asociarlo en BD en el futuro
+        sessionId,
       });
     }
 
     return res.json({ reply: '¿Quiere reservar, modificar o cancelar una cita?' });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ reply: '❌ Error procesando la solicitud.' });
+    console.error('❌ Error en webhook Retell:', err);
+    return res.status(500).json({ reply: '❌ Error procesando la solicitud.' });
   }
 });
