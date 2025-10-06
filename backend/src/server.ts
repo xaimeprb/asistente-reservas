@@ -31,21 +31,24 @@ export function createServer() {
   });
   app.get('/health', (_req, res) => res.status(200).send('ok'));
 
-  // Rutas de negocio (SIN prefijo /api)
-  // -> Quedan como "/:slug/citas", "/:slug/citas/resolve", etc.
-  app.use('/', router);
+  // =============================
+  //   RUTAS PRINCIPALES API
+  // =============================
 
-// Webhook Retell -> "/api/retell/webhook/:slug"
-app.use('/api/retell', retellRouter);
+  // Rutas de negocio (multi-tenant)
+  app.use('/api', router);
 
-  // Rutas administrativas / auth (pueden ir con /api para separarlas)
+  // Webhook Retell
+  app.use('/api/retell', retellRouter);
+
+  // Rutas administrativas y auth
   app.use('/api/auth', authRouter);
   app.use('/api/admin', adminRouter);
 
-  // 404
+  // 404 genérico
   app.use((_req, res) => res.status(404).json({ ok: false, error: 'Not found' }));
 
-  // Error handler unificado
+  // Manejador de errores
   app.use(errorHandler);
 
   return app;
