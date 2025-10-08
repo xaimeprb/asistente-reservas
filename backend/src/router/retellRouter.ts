@@ -3,6 +3,7 @@ import { detectIntentAndSlots } from "../core/nlp";
 import { AgendaService } from "../services/agenda-prisma";
 import { TenantService } from "../services/tenants";
 import { createCalendarEvent } from "../services/calendarService";
+import { DateTime } from "luxon";
 
 export const retellRouter = express.Router();
 
@@ -43,9 +44,22 @@ retellRouter.post("/webhook/:slug", async (req: Request, res: Response) => {
         });
       }
 
-      // 🕐 Ajuste horario Europe/Madrid
+      // 🕐 Ajuste horario Europe/Madrid con validación
       const tz = process.env["DEFAULT_TIMEZONE"] ?? "Europe/Madrid";
-      const fechaHora = new Date(`${slots["fecha"]}T${slots["hora"]}:00+02:00`);
+
+      // Normalizar hora — si el modelo devuelve 24:00, pasamos al día siguiente
+      let horaFormateada = slots["hora"];
+      if (horaFormateada === "24:00" || horaFormateada === "24") {
+        horaFormateada = "00:00";
+        slots["fecha"] = DateTime.fromISO(slots["fecha"])
+          .plus({ days: 1 })
+          .toISODate();
+      }
+
+      // Crear objeto fecha con timezone correcto
+      const fechaHora = DateTime.fromISO(`${slots["fecha"]}T${horaFormateada}`)
+        .setZone(tz)
+        .toJSDate();
 
       const cita = await AgendaService.create(tenant.id, {
         cliente: cliente.nombre,
@@ -67,7 +81,7 @@ retellRouter.post("/webhook/:slug", async (req: Request, res: Response) => {
       }
 
       return res.json({
-        reply: `✅ Cita confirmada para ${slots["fecha"]} a las ${slots["hora"]}.`,
+        reply: `✅ Cita confirmada para ${slots["fecha"]} a las ${horaFormateada}.`,
         citaId: cita.id,
         cita,
         confirmToken: Buffer.from(JSON.stringify(cita)).toString("base64"),
