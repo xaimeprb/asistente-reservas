@@ -1,4 +1,3 @@
-// Servicio para Google Calendar API con ADC
 import { google } from "googleapis";
 import { Cita } from "@prisma/client";
 import { DateTime } from "luxon";
@@ -13,18 +12,25 @@ function requireEnv(key: string): string {
  * Inserta un evento basado en tu entidad Cita (Prisma)
  * Requiere:
  *  - GOOGLE_CALENDAR_ID
- *  - (Opcional) DEFAULT_TIMEZONE (por defecto Europe/Madrid)
- *  - Service Account adjunta al servicio (ADC) con permiso "Hacer cambios en eventos"
+ *  - GOOGLE_CREDENTIALS (cuenta de servicio)
+ *  - DEFAULT_TIMEZONE (por defecto Europe/Madrid)
  */
 export async function createCalendarEvent(cita: Cita) {
+  const creds = process.env["GOOGLE_CREDENTIALS"];
+  if (!creds) throw new Error("❌ Falta GOOGLE_CREDENTIALS en el entorno.");
+
+  const credentials = JSON.parse(creds);
+
   const auth = new google.auth.GoogleAuth({
+    credentials,
     scopes: ["https://www.googleapis.com/auth/calendar"],
   });
+
   const calendar = google.calendar({ version: "v3", auth });
-
   const calendarId = requireEnv("GOOGLE_CALENDAR_ID");
-  const tz = process.env['DEFAULT_TIMEZONE'] ?? "Europe/Madrid";
+  const tz = process.env["DEFAULT_TIMEZONE"] ?? "Europe/Madrid";
 
+  // 🕐 Convertir a hora local (evita el desfase UTC)
   const start = DateTime.fromJSDate(new Date(cita.fecha)).setZone(tz);
   const end = start.plus({ minutes: cita.duracion ?? 30 });
 
@@ -42,5 +48,5 @@ export async function createCalendarEvent(cita: Cita) {
     },
   });
 
-  console.log(`📅 Evento creado en Google Calendar para ${cita.cliente}`);
+  console.log(`📅 Evento añadido en Google Calendar para ${cita.cliente}`);
 }
