@@ -9,7 +9,7 @@ export const retellRouter = express.Router();
 /** Webhook Retell multi-tenant: /api/retell/webhook/:slug */
 retellRouter.post("/webhook/:slug", async (req: Request, res: Response) => {
   try {
-    // Verificación del token secreto
+    // 🔒 Verificación del token secreto
     const authHeader = req.headers.authorization;
     if (
       process.env["RETELL_API_SECRET"] &&
@@ -43,7 +43,10 @@ retellRouter.post("/webhook/:slug", async (req: Request, res: Response) => {
         });
       }
 
-      const fechaHora = new Date(`${slots["fecha"]}T${slots["hora"]}:00`);
+      // 🕐 Ajuste horario Europe/Madrid
+      const tz = process.env["DEFAULT_TIMEZONE"] ?? "Europe/Madrid";
+      const fechaHora = new Date(`${slots["fecha"]}T${slots["hora"]}:00+02:00`);
+
       const cita = await AgendaService.create(tenant.id, {
         cliente: cliente.nombre,
         telefono: cliente.telefono,
