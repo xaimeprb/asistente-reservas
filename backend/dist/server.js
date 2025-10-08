@@ -29,8 +29,8 @@ function createServer() {
         });
     });
     app.get('/health', (_req, res) => res.status(200).send('ok'));
-    app.use('/', router_1.router);
-    app.use('/retell', router_retell_1.retellRouter);
+    app.use('/api', router_1.router);
+    app.use('/api/retell', router_retell_1.retellRouter);
     app.use('/api/auth', authRouter_1.authRouter);
     app.use('/api/admin', router_admin_1.adminRouter);
     app.use((_req, res) => res.status(404).json({ ok: false, error: 'Not found' }));

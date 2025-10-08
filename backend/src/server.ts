@@ -8,7 +8,7 @@ import cookieParser from 'cookie-parser';
 import { router } from './router';
 import { authRouter } from './authRouter';
 import { adminRouter } from './router-admin';
-import { retellRouter } from './router-retell';
+import { retellRouter } from './router/retellRouter';
 import { errorHandler } from './middlewares/errorHandler';
 
 export function createServer() {
@@ -38,7 +38,7 @@ export function createServer() {
   // Rutas de negocio (multi-tenant)
   app.use('/api', router);
 
-  // Webhook Retell
+  // Webhook Retell (multi-tenant)
   app.use('/api/retell', retellRouter);
 
   // Rutas administrativas y auth
