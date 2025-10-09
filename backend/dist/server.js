@@ -12,7 +12,7 @@ const cookie_parser_1 = __importDefault(require("cookie-parser"));
 const router_1 = require("./router");
 const authRouter_1 = require("./authRouter");
 const router_admin_1 = require("./router-admin");
-const router_retell_1 = require("./router-retell");
+const retellRouter_1 = require("./router/retellRouter");
 const errorHandler_1 = require("./middlewares/errorHandler");
 function createServer() {
     const app = (0, express_1.default)();
@@ -30,7 +30,7 @@ function createServer() {
     });
     app.get('/health', (_req, res) => res.status(200).send('ok'));
     app.use('/api', router_1.router);
-    app.use('/api/retell', router_retell_1.retellRouter);
+    app.use('/api/retell', retellRouter_1.retellRouter);
     app.use('/api/auth', authRouter_1.authRouter);
     app.use('/api/admin', router_admin_1.adminRouter);
     app.use((_req, res) => res.status(404).json({ ok: false, error: 'Not found' }));
