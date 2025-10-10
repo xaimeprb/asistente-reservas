@@ -16,31 +16,23 @@ async function detectIntentAndSlots(texto) {
     const tel = t.match(/(\+?\d[\d\s]{7,}\d)/);
     if (tel)
         slots["telefono"] = tel[1].replace(/\s+/g, "");
-    const fecha = t.match(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](20\d{2})\b/) ||
+    const fechaMatch = t.match(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](20\d{2})\b/) ||
         t.match(/\b(20\d{2})-(\d{1,2})-(\d{1,2})\b/);
-    if (fecha) {
-        if (fecha[3].startsWith("20")) {
-            const [_, d, m, y] = fecha;
+    if (fechaMatch) {
+        if (fechaMatch[3]?.startsWith("20")) {
+            const [_, d, m, y] = fechaMatch;
             slots["fecha"] = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
         }
         else {
-            const [_, y, m, d] = fecha;
+            const [_, y, m, d] = fechaMatch;
             slots["fecha"] = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
         }
     }
-    const hora = t.match(/\b([01]?\d|2[0-3]):?([0-5]\d)?\b/) ||
-        t.match(/\b(a\s+las\s+(\d{1,2})(?:\s*y\s+media)?)\b/);
-    if (hora) {
-        let h;
-        let m;
-        if (hora[2] && /^[0-5]\d$/.test(hora[2])) {
-            h = hora[1].padStart(2, "0");
-            m = hora[2];
-        }
-        else {
-            h = hora[1].padStart(2, "0");
-            m = hora[2] ? hora[2].padStart(2, "0") : "00";
-        }
+    const horaMatch = t.match(/\b([01]?\d|2[0-3]):?([0-5]\d)?\b/) ||
+        t.match(/\ba\s+las\s+(\d{1,2})(?:\s*y\s+media)?\b/);
+    if (horaMatch) {
+        const h = horaMatch[1].padStart(2, "0");
+        const m = horaMatch[2] ? horaMatch[2].padStart(2, "0") : "00";
         slots["hora"] = `${h}:${m}`;
     }
     if (/fisio|fisioterap/.test(t))
@@ -51,4 +43,4 @@ async function detectIntentAndSlots(texto) {
         slots["servicio"] = "Limpieza dental";
     return { intent, slots };
 }
-//# sourceMappingURL=nlp.js.map
+//# sourceMappingURL=detectIntentAndSlots.js.map

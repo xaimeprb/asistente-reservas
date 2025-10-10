@@ -1,60 +1,70 @@
-﻿import { Intent } from './domain';
+﻿import { Intent } from "../domain";
 
+/**
+ * Extrae intent y entidades (fecha, hora, servicio, teléfono) de texto libre.
+ * Soporta expresiones naturales en español como:
+ * "el 29/10/2025 a las 10", "mañana a las 9:30", etc.
+ */
 export async function detectIntentAndSlots(
   texto: string
 ): Promise<{ intent: Intent; slots: Record<string, string> }> {
-  const t = texto.toLowerCase();
+  const t = texto.toLowerCase().trim();
   const slots: Record<string, string> = {};
-  let intent: Intent = { name: 'duda', confidence: 0, slots: {} };
+  let intent: Intent = { name: "duda", confidence: 0, slots: {} };
 
-  // --- INTENCIÓN ---
-  if (/reserv(ar|a)|cita/.test(t)) intent = { name: 'reservar', confidence: 0.9, slots: {} };
-  else if (/modific(ar|a)/.test(t)) intent = { name: 'modificar', confidence: 0.9, slots: {} };
-  else if (/cancel(ar|a)/.test(t)) intent = { name: 'cancelar', confidence: 0.9, slots: {} };
-  else if (/precio|horario|dirección|donde|cómo llegar|teléfono/.test(t))
-    intent = { name: 'informacion', confidence: 0.9, slots: {} };
+  // --- Intención principal ---
+  if (/reserv(ar|a)/.test(t) || /cita/.test(t))
+    intent = { name: "reservar", confidence: 0.9, slots: {} };
+  else if (/modific(ar|a)/.test(t))
+    intent = { name: "modificar", confidence: 0.9, slots: {} };
+  else if (/cancel(ar|a)/.test(t))
+    intent = { name: "cancelar", confidence: 0.9, slots: {} };
+  else if (/precio|horario|direcci|dónde|teléfono|llamar/.test(t))
+    intent = { name: "informacion", confidence: 0.9, slots: {} };
 
-  // --- TELÉFONO ---
+  // --- Teléfono ---
   const tel = t.match(/(\+?\d[\d\s]{7,}\d)/);
-  if (tel) slots['telefono'] = tel[1]?.replace(/\s+/g, '') || '';
+  if (tel) slots["telefono"] = tel[1].replace(/\s+/g, "");
 
-  // --- HORA ---
-  const horaRegex = /(?:a\s*las\s*)?(\d{1,2})(?::|\.| y )?(\d{0,2})?/i;
-  const horaMatch = t.match(horaRegex);
-  if (horaMatch) {
-    const hh = horaMatch[1]?.padStart(2, '0') || '00';
-    const mm = horaMatch[2] ? horaMatch[2].padStart(2, '0') : '00';
-    slots['hora'] = `${hh}:${mm}`;
+  // --- Fecha (dd/mm/yyyy, dd-mm-yyyy, yyyy-mm-dd) ---
+  const fecha =
+    t.match(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](20\d{2})\b/) ||
+    t.match(/\b(20\d{2})-(\d{1,2})-(\d{1,2})\b/);
+
+  if (fecha) {
+    if (fecha[3].startsWith("20")) {
+      // formato dd/mm/yyyy
+      const [_, d, m, y] = fecha;
+      slots["fecha"] = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+    } else {
+      // formato yyyy-mm-dd
+      const [_, y, m, d] = fecha;
+      slots["fecha"] = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+    }
   }
 
-  // --- FECHA ---
-  // Soporta: 10/10/2025, 10-10-2025, el 10 de octubre de 2025, 10 octubre 2025
-  const fechaRegex = /(?:el\s*)?(\d{1,2})(?:\s*(?:de|\/|\-)\s*)([a-záéíóú]+|\d{1,2})(?:\s*(?:de)?\s*)?(\d{4})?/i;
-  const meses: Record<string, number> = {
-    enero: 1, febrero: 2, marzo: 3, abril: 4, mayo: 5, junio: 6,
-    julio: 7, agosto: 8, septiembre: 9, setiembre: 9, octubre: 10,
-    noviembre: 11, diciembre: 12
-  };
+  // --- Hora (HH:mm, H:mm, H) ---
+  const hora =
+    t.match(/\b([01]?\d|2[0-3]):?([0-5]\d)?\b/) ||
+    t.match(/\b(a\s+las\s+(\d{1,2})(?:\s*y\s+media)?)\b/);
 
-  const fechaMatch = t.match(fechaRegex);
-  if (fechaMatch) {
-    let [_, d, m, y] = fechaMatch;
-    let monthNum: number;
-
-    // Si el mes es texto (octubre, mayo, etc.)
-    if (isNaN(Number(m))) monthNum = meses[m.toLowerCase()] || new Date().getMonth() + 1;
-    else monthNum = Number(m);
-
-    const year = y ? Number(y) : new Date().getFullYear();
-    const day = Number(d);
-    const dateISO = `${year}-${String(monthNum).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    slots['fecha'] = dateISO;
+  if (hora) {
+    let h: string;
+    let m: string;
+    if (hora[2] && /^[0-5]\d$/.test(hora[2])) {
+      h = hora[1].padStart(2, "0");
+      m = hora[2];
+    } else {
+      h = hora[1].padStart(2, "0");
+      m = hora[2] ? hora[2].padStart(2, "0") : "00";
+    }
+    slots["hora"] = `${h}:${m}`;
   }
 
-  // --- SERVICIO ---
-  if (/limpieza|dental/.test(t)) slots['servicio'] = 'Limpieza dental';
-  if (/corte|tinte|pelu/.test(t)) slots['servicio'] = 'Peluquería';
-  if (/fisio|fisioterap/.test(t)) slots['servicio'] = 'Fisioterapia';
+  // --- Servicio ---
+  if (/fisio|fisioterap/.test(t)) slots["servicio"] = "Fisioterapia";
+  if (/corte|tinte|pelu/.test(t)) slots["servicio"] = "Peluquería";
+  if (/dental|dentista|limpieza/.test(t)) slots["servicio"] = "Limpieza dental";
 
   return { intent, slots };
 }

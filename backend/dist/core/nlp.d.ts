@@ -1,4 +1,4 @@
-import { Intent } from './domain';
+import { Intent } from "../domain";
 export declare function detectIntentAndSlots(texto: string): Promise<{
     intent: Intent;
     slots: Record<string, string>;
