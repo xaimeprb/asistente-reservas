@@ -74,11 +74,12 @@ exports.retellRouter.post("/webhook/:slug", async (req, res) => {
             return res.status(404).json({ reply: "⚠️ Negocio no encontrado." });
         const { intent, slots } = await (0, nlp_1.detectIntentAndSlots)(text || "");
         if (intent.name !== "reservar") {
-            return res.json({ reply: "¿Quieres reservar, modificar o cancelar una cita?", sessionId });
+            return res.json({
+                reply: "¿Quieres reservar, modificar o cancelar una cita?",
+                sessionId,
+            });
         }
         const faltan = [];
-        if (!slots["servicio"])
-            faltan.push("el tipo de servicio");
         if (!slots["fecha"])
             faltan.push("la fecha");
         if (!slots["hora"])
@@ -87,6 +88,9 @@ exports.retellRouter.post("/webhook/:slug", async (req, res) => {
             faltan.push("su nombre");
         if (!cliente?.telefono)
             faltan.push("su teléfono");
+        const defaultService = tenant?.defaultService ?? "Consulta general";
+        if (!slots["servicio"])
+            slots["servicio"] = defaultService;
         if (faltan.length) {
             return res.json({
                 reply: `Para confirmar la cita necesito ${faltan.join(", ")}.`,
@@ -98,7 +102,7 @@ exports.retellRouter.post("/webhook/:slug", async (req, res) => {
         try {
             fechaHora = parseFechaHora(String(slots["fecha"]), String(slots["hora"]), tz);
         }
-        catch (e) {
+        catch {
             return res.status(400).json({ reply: "⚠️ Fecha u hora inválida.", sessionId });
         }
         const cita = await agenda_prisma_1.AgendaService.create(tenant.id, {
@@ -119,10 +123,10 @@ exports.retellRouter.post("/webhook/:slug", async (req, res) => {
             console.error("⚠️ No se pudo crear el evento en Calendar:", err);
         }
         const fechaLocal = luxon_1.DateTime.fromJSDate(fechaHora).setZone(tz);
-        const fechaOut = fechaLocal.toISODate();
+        const fechaOut = fechaLocal.toLocaleString(luxon_1.DateTime.DATE_FULL);
         const horaOut = fechaLocal.toFormat("HH:mm");
         return res.json({
-            reply: `✅ Cita confirmada para ${fechaOut} a las ${horaOut}.`,
+            reply: `✅ Cita confirmada para ${fechaOut} a las ${horaOut} (${slots["servicio"]}).`,
             citaId: cita.id,
             cita,
             sessionId,
@@ -130,7 +134,9 @@ exports.retellRouter.post("/webhook/:slug", async (req, res) => {
     }
     catch (error) {
         console.error("💥 Error general en webhook Retell:", error);
-        return res.status(500).json({ reply: "❌ Error procesando la solicitud del webhook." });
+        return res
+            .status(500)
+            .json({ reply: "❌ Error procesando la solicitud del webhook." });
     }
 });
 //# sourceMappingURL=retellRouter.js.map

@@ -87,22 +87,30 @@ retellRouter.post("/webhook/:slug", async (req: Request, res: Response) => {
     if (!slug) return res.status(400).json({ reply: "⚠️ Falta el slug." });
 
     const tenant = await TenantService.getBySlug(slug);
-    if (!tenant) return res.status(404).json({ reply: "⚠️ Negocio no encontrado." });
+    if (!tenant)
+      return res.status(404).json({ reply: "⚠️ Negocio no encontrado." });
 
     const { intent, slots } = await detectIntentAndSlots(text || "");
 
+    // 🎯 Solo procesamos reservas
     if (intent.name !== "reservar") {
-      return res.json({ reply: "¿Quieres reservar, modificar o cancelar una cita?", sessionId });
+      return res.json({
+        reply: "¿Quieres reservar, modificar o cancelar una cita?",
+        sessionId,
+      });
     }
 
-    // ⚙️ Comprobar campos requeridos
+    // ⚙️ Campos requeridos
     const faltan: string[] = [];
-    if (!slots["servicio"]) faltan.push("el tipo de servicio");
     if (!slots["fecha"]) faltan.push("la fecha");
     if (!slots["hora"]) faltan.push("la hora");
     if (!cliente?.nombre) faltan.push("su nombre");
     if (!cliente?.telefono) faltan.push("su teléfono");
 
+    // 🧩 Si el cliente no menciona el servicio, usar el del negocio
+    const defaultService = tenant?.defaultService ?? "Consulta general";
+    if (!slots["servicio"]) slots["servicio"] = defaultService;
+    
     if (faltan.length) {
       return res.json({
         reply: `Para confirmar la cita necesito ${faltan.join(", ")}.`,
@@ -115,7 +123,7 @@ retellRouter.post("/webhook/:slug", async (req: Request, res: Response) => {
     let fechaHora: Date;
     try {
       fechaHora = parseFechaHora(String(slots["fecha"]), String(slots["hora"]), tz);
-    } catch (e) {
+    } catch {
       return res.status(400).json({ reply: "⚠️ Fecha u hora inválida.", sessionId });
     }
 
@@ -139,18 +147,21 @@ retellRouter.post("/webhook/:slug", async (req: Request, res: Response) => {
       console.error("⚠️ No se pudo crear el evento en Calendar:", err);
     }
 
+    // 💬 Respuesta amigable
     const fechaLocal = DateTime.fromJSDate(fechaHora).setZone(tz);
-    const fechaOut = fechaLocal.toISODate();
+    const fechaOut = fechaLocal.toLocaleString(DateTime.DATE_FULL);
     const horaOut = fechaLocal.toFormat("HH:mm");
 
     return res.json({
-      reply: `✅ Cita confirmada para ${fechaOut} a las ${horaOut}.`,
+      reply: `✅ Cita confirmada para ${fechaOut} a las ${horaOut} (${slots["servicio"]}).`,
       citaId: cita.id,
       cita,
       sessionId,
     });
   } catch (error) {
     console.error("💥 Error general en webhook Retell:", error);
-    return res.status(500).json({ reply: "❌ Error procesando la solicitud del webhook." });
+    return res
+      .status(500)
+      .json({ reply: "❌ Error procesando la solicitud del webhook." });
   }
 });

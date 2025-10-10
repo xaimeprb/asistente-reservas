@@ -8,6 +8,8 @@ export declare const TenantService: {
         nombre: string;
         slug: string;
         direccion: string | null;
+        defaultService: string;
+        tipoNegocio: string;
     }[]>;
     get(id: string): Promise<{
         id: string;
@@ -18,6 +20,8 @@ export declare const TenantService: {
         nombre: string;
         slug: string;
         direccion: string | null;
+        defaultService: string;
+        tipoNegocio: string;
     }>;
     getBySlug(slug: string): Promise<{
         id: string;
@@ -28,6 +32,8 @@ export declare const TenantService: {
         nombre: string;
         slug: string;
         direccion: string | null;
+        defaultService: string;
+        tipoNegocio: string;
     }>;
     create(input: {
         nombre: string;
@@ -43,6 +49,8 @@ export declare const TenantService: {
         nombre: string;
         slug: string;
         direccion: string | null;
+        defaultService: string;
+        tipoNegocio: string;
     }>;
     remove(id: string): Promise<boolean>;
 };
